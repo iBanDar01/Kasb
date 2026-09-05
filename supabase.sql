@@ -114,6 +114,8 @@ grant execute on function public.submit_verified_review(text,text,integer,text) 
 
 -- Protect tables from direct client writes; the RPC is the only customer review path.
 revoke insert, update, delete on public.reviews from anon, authenticated;
+-- Admins need UPDATE/DELETE on reviews; RLS policies above restrict these operations to admins.
+grant select, update, delete on public.reviews to authenticated;
 revoke select, insert, update, delete on public.verification_codes from anon;
 
 -- Realtime (safe to run even if it was already added).

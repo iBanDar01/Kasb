@@ -43,7 +43,7 @@ export default function Admin() {
 
   async function updateReview(review) {
     const { error } = await supabase.from("reviews").update({ name: review.name, rating: review.rating, comment: review.comment, approved: review.approved }).eq("id", review.id);
-    setMsg(error ? "تعذر تعديل التقييم." : "تم تعديل التقييم.");
+    setMsg(error ? `تعذر تعديل التقييم: ${error.message}` : "تم تعديل التقييم.");
     setEditing(null);
     loadAdminData();
   }
@@ -51,7 +51,7 @@ export default function Admin() {
   async function deleteReview(id) {
     if (!confirm("حذف هذا التقييم نهائيًا؟")) return;
     const { error } = await supabase.from("reviews").delete().eq("id", id);
-    setMsg(error ? "تعذر حذف التقييم." : "تم حذف التقييم.");
+    setMsg(error ? `تعذر حذف التقييم: ${error.message}` : "تم حذف التقييم.");
     loadAdminData();
   }
 
