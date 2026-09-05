@@ -1,26 +1,37 @@
-# كاسب ستور — Reviews / Vercel + Supabase
+# كاسب ديجيتال — Verified Reviews
 
-نسخة جاهزة للنشر على Vercel باستخدام Supabase PostgreSQL بدل SQLite.
+نسخة Next.js + Supabase محسنة بواجهة عربية/إنجليزية، صور المتجر، روابط التواصل، تقييمات موثقة برمز شراء، ولوحة إدارة.
 
 ## 1) Supabase
-أنشئ مشروعًا في Supabase، ثم افتح SQL Editor والصق محتوى `supabase.sql` وشغّله.
+شغّل `supabase.sql` كاملًا في SQL Editor.
 
-## 2) مفاتيح المشروع
-من إعدادات/Connect في Supabase خذ:
-- Project URL
-- Publishable key (أو anon key إذا كانت واجهتك القديمة تعرضه)
+## 2) متغيرات Vercel
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 
-أنشئ في Vercel متغيرين:
-NEXT_PUBLIC_SUPABASE_URL
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+## 3) إنشاء حساب الإدارة
+في Supabase: Authentication > Users أنشئ مستخدمًا برقم الجوال وكلمة مرور. فعّل Phone Provider إذا لزم.
+بعد إنشاء المستخدم انسخ User UID ثم نفّذ:
 
-## 3) Vercel
-ارفع المشروع إلى GitHub ثم في Vercel:
-Add New Project → Import Git Repository → Deploy.
-Vercel يتعرف على Next.js تلقائيًا.
+```sql
+insert into public.admin_users(user_id) values ('USER-UUID-HERE');
+```
 
-## 4) النتيجة
-التقييمات محفوظة في PostgreSQL على Supabase، وليست داخل ملفات الموقع.
-كل زائر يقرأ نفس قاعدة البيانات، وإضافة تقييم جديد تظهر للزوار.
+بعدها افتح `/admin` وسجّل الدخول برقم الجوال وكلمة المرور.
 
-ملاحظة: النسخة الحالية تنشر التقييم فورًا. إذا أردت منع التقييمات الوهمية، يمكن إضافة تسجيل دخول/رمز طلب أو لوحة موافقة للمشرف لاحقًا.
+## 4) طريقة تأكيد الشراء
+لا يمكن لصفحة التقييم أن تعرف أن العميل اشترى من WhatsApp تلقائيًا من دون نظام طلبات/WhatsApp Business API. لذلك النسخة تستخدم طريقة مجانية وآمنة نسبيًا:
+1. العميل يطلب عبر واتساب.
+2. بعد تأكيد الطلب، الإدارة تنشئ رمزًا فريدًا من لوحة `/admin` مثل `KASB-8F42`.
+3. الإدارة ترسل الرمز للعميل.
+4. العميل يدخل الرمز مع تقييمه.
+5. الرمز يستخدم مرة واحدة فقط.
+
+## 5) الروابط
+- WhatsApp: https://wa.me/966566121026
+- TikTok: https://www.tiktok.com/@0kasb
+- Discord: https://discord.gg/kb1
+
+## 6) الصور
+- `public/kasb-logo.jpg`
+- `public/kasb-banner.png`

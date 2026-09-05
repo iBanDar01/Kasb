@@ -1,43 +1,155 @@
- "use client";
-import {useEffect,useState} from "react";
-import {supabase} from "../lib/supabase";
+"use client";
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "../lib/supabase";
 
-export default function Reviews(){
- const [data,setData]=useState({reviews:[],count:0,average:"0.0"}),[name,setName]=useState(""),[comment,setComment]=useState(""),[rating,setRating]=useState(5),[msg,setMsg]=useState(""),[loading,setLoading]=useState(true);
+const SOCIAL = {
+  whatsapp: "https://wa.me/966566121026",
+  tiktok: "https://www.tiktok.com/@0kasb",
+  discord: "https://discord.gg/kb1",
+};
 
- async function load(){
-   setLoading(true);
-   const {data:rows,error}=await supabase.from("reviews").select("id,name,rating,comment,created_at").eq("approved",true).order("created_at",{ascending:false});
-   if(error){setMsg("تعذر تحميل التقييمات");setLoading(false);return}
-   const count=rows.length, avg=count?(rows.reduce((a,x)=>a+x.rating,0)/count).toFixed(1):"0.0";
-   setData({reviews:rows,count,average:avg}); setLoading(false);
- }
- useEffect(()=>{load(); const channel=supabase.channel("reviews-live").on("postgres_changes",{event:"*",schema:"public",table:"reviews"},()=>load()).subscribe(); return()=>{supabase.removeChannel(channel)}},[]);
+function stars(value) {
+  return "★".repeat(value) + "☆".repeat(5 - value);
+}
 
- async function submit(e){
-   e.preventDefault(); setMsg("جاري النشر...");
-   const {error}=await supabase.from("reviews").insert({name:name.trim(),rating,comment:comment.trim(),approved:true});
-   if(error){setMsg("تعذر نشر التقييم، حاول مرة أخرى.");return}
-   setName("");setComment("");setRating(5);setMsg("تم نشر تقييمك، شكرًا لك!");load();
- }
- return <main>
-  <header><div className="logo">كاسب <span>STORE</span></div><div className="badge">آراء عملائنا</div></header>
-  <section className="hero"><p className="eyebrow">KASB STORE</p><h1>تقييمات العملاء</h1><p>تجارب وآراء عملائنا بعد الشراء من كاسب ستور</p>
-   <div className="stats"><div><b>★ {data.average}</b><small>متوسط التقييم</small></div><div><b>{data.count}</b><small>تقييم عميل</small></div><div><b>★★★★★</b><small>جودة الخدمة</small></div></div>
-  </section>
-  <section className="grid">
-   <div><div className="sectionHead"><h2>جميع التقييمات</h2><span>{data.count} تقييم</span></div>
-    {loading?<div className="empty">جاري تحميل التقييمات...</div>:data.reviews.length===0?<div className="empty">كن أول من يترك تقييمًا ⭐</div>:data.reviews.map(x=><article className="review" key={x.id}>
-      <div className="avatar">{x.name[0]}</div><div className="reviewBody"><div className="reviewTop"><strong>{x.name}</strong><time>{new Date(x.created_at).toLocaleDateString("ar-SA")}</time></div><div className="stars">{"★".repeat(x.rating)}<i>{"★".repeat(5-x.rating)}</i></div><p>{x.comment}</p></div>
-    </article>)}
-   </div>
-   <aside><h2>شاركنا تجربتك</h2><p>رأيك يهمنا ويساعد العملاء الآخرين 🤍</p>
-    <form onSubmit={submit}><label>اسمك<input value={name} onChange={e=>setName(e.target.value)} maxLength={40} required placeholder="اكتب اسمك"/></label>
-    <label>تقييمك<div className="picker">{[1,2,3,4,5].map(n=><button type="button" key={n} onClick={()=>setRating(n)} className={n<=rating?"on":""}>★</button>)}</div></label>
-    <label>تعليقك<textarea value={comment} onChange={e=>setComment(e.target.value)} maxLength={500} required placeholder="اكتب رأيك في تجربتك..."/></label>
-    <button className="submit">نشر التقييم</button>{msg&&<div className="msg">{msg}</div>}</form>
-   </aside>
-  </section>
-  <footer>© {new Date().getFullYear()} كاسب ستور — جميع الحقوق محفوظة</footer>
- </main>
+export default function Reviews() {
+  const [reviews, setReviews] = useState([]);
+  const [name, setName] = useState("");
+  const [comment, setComment] = useState("");
+  const [rating, setRating] = useState(5);
+  const [code, setCode] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  async function load() {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("reviews")
+      .select("id,name,rating,comment,created_at")
+      .eq("approved", true)
+      .order("created_at", { ascending: false });
+    if (!error) setReviews(data || []);
+    else setMsg("تعذر تحميل التقييمات حاليًا");
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    load();
+    const channel = supabase
+      .channel("reviews-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "reviews" }, load)
+      .subscribe();
+    return () => supabase.removeChannel(channel);
+  }, []);
+
+  const average = useMemo(() => {
+    if (!reviews.length) return "0.0";
+    return (reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length).toFixed(1);
+  }, [reviews]);
+
+  async function submit(event) {
+    event.preventDefault();
+    setSending(true);
+    setMsg("جاري التحقق من عملية الشراء...");
+
+    const { error } = await supabase.rpc("submit_verified_review", {
+      p_code: code.trim(),
+      p_name: name.trim(),
+      p_rating: rating,
+      p_comment: comment.trim(),
+    });
+
+    if (error) {
+      setMsg(error.message?.includes("INVALID_CODE")
+        ? "رمز التحقق غير صحيح أو تم استخدامه مسبقًا."
+        : "تعذر نشر التقييم. تأكد من البيانات وحاول مرة أخرى.");
+      setSending(false);
+      return;
+    }
+
+    setName("");
+    setComment("");
+    setCode("");
+    setRating(5);
+    setMsg("تم تأكيد الشراء ونشر تقييمك. شكرًا لثقتك 🤍");
+    await load();
+    setSending(false);
+  }
+
+  return (
+    <main>
+      <header className="topbar">
+        <a href="/" className="brand" aria-label="كاسب ديجيتال">
+          <img src="/kasb-logo.jpg" alt="Kasb Digital" />
+        </a>
+        <div className="top-actions">
+          <a className="admin-link" href="/admin">إدارة</a>
+          <span className="badge">آراء العملاء</span>
+        </div>
+      </header>
+
+      <section className="hero">
+        <img className="hero-logo" src="/kasb-logo.jpg" alt="كاسب ديجيتال" />
+        <div className="eyebrow">KASB DIGITAL</div>
+        <h1>آراء عملائنا</h1>
+        <p>تجارب حقيقية من عملاء كاسب بعد تأكيد عملية الشراء.</p>
+        <div className="hero-buttons">
+          <a href={SOCIAL.whatsapp} target="_blank" rel="noreferrer" className="primary-link">واتساب الدعم</a>
+          <a href={SOCIAL.tiktok} target="_blank" rel="noreferrer" className="ghost-link">تيك توك</a>
+          <a href={SOCIAL.discord} target="_blank" rel="noreferrer" className="ghost-link">ديسكورد</a>
+        </div>
+        <div className="stats">
+          <div><b>★ {average}</b><small>متوسط التقييم</small></div>
+          <div><b>{reviews.length}</b><small>تقييم موثّق</small></div>
+          <div><b>✓ شراء مؤكد</b><small>التقييم يتطلب رمز شراء</small></div>
+        </div>
+      </section>
+
+      <section className="grid">
+        <div className="panel reviews-panel">
+          <div className="sectionHead">
+            <div><span className="kicker">CUSTOMER VOICES</span><h2>جميع التقييمات</h2></div>
+            <span>{reviews.length} تقييم</span>
+          </div>
+          {loading ? <div className="empty">جاري تحميل التقييمات...</div> : reviews.length === 0 ? <div className="empty">لا توجد تقييمات حتى الآن. كن أول عميل يشارك تجربته ⭐</div> : reviews.map((review) => (
+            <article className="review" key={review.id}>
+              <div className="avatar">{review.name?.[0] || "ك"}</div>
+              <div className="reviewBody">
+                <div className="reviewTop"><strong>{review.name}</strong><time>{new Date(review.created_at).toLocaleDateString("ar-SA")}</time></div>
+                <div className="stars">{stars(review.rating)}</div>
+                <p>{review.comment}</p>
+                <span className="verified">✓ شراء مؤكد</span>
+              </div>
+            </article>
+          ))}
+        </div>
+
+        <aside className="panel form-panel">
+          <span className="kicker">VERIFIED REVIEW</span>
+          <h2>شاركنا تجربتك</h2>
+          <p>لا يمكن نشر التقييم إلا باستخدام رمز يتم إعطاؤه للعميل بعد تأكيد طلبه.</p>
+          <form onSubmit={submit}>
+            <label>رمز تأكيد الشراء<input value={code} onChange={(e) => setCode(e.target.value)} required placeholder="أدخل الرمز الذي استلمته" autoComplete="off" /></label>
+            <label>اسمك<input value={name} onChange={(e) => setName(e.target.value)} maxLength={40} required placeholder="اكتب اسمك" /></label>
+            <label>تقييمك<div className="picker">{[1,2,3,4,5].map((n) => <button type="button" key={n} onClick={() => setRating(n)} className={n <= rating ? "on" : ""} aria-label={`${n} نجوم`}>★</button>)}</div></label>
+            <label>تعليقك<textarea value={comment} onChange={(e) => setComment(e.target.value)} maxLength={500} required placeholder="اكتب رأيك في تجربتك..." /></label>
+            <button className="submit" disabled={sending}>{sending ? "جاري التحقق..." : "تأكيد ونشر التقييم"}</button>
+            {msg && <div className="msg">{msg}</div>}
+          </form>
+          <a className="order-help" href={SOCIAL.whatsapp} target="_blank" rel="noreferrer">ما عندي رمز؟ تواصل مع الدعم عبر واتساب ←</a>
+        </aside>
+      </section>
+
+      <footer>
+        <div className="footer-brand"><img src="/kasb-logo.jpg" alt="Kasb Digital" /></div>
+        <div className="socials">
+          <a href={SOCIAL.whatsapp} target="_blank" rel="noreferrer">واتساب</a>
+          <a href={SOCIAL.tiktok} target="_blank" rel="noreferrer">TikTok</a>
+          <a href={SOCIAL.discord} target="_blank" rel="noreferrer">Discord</a>
+        </div>
+        <p>© {new Date().getFullYear()} كاسب ديجيتال — جميع الحقوق محفوظة</p>
+      </footer>
+    </main>
+  );
 }
