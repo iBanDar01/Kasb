@@ -10,14 +10,14 @@
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 
 ## 3) إنشاء حساب الإدارة
-في Supabase: Authentication > Users أنشئ مستخدمًا برقم الجوال وكلمة مرور. فعّل Phone Provider إذا لزم.
+في Supabase: Authentication > Users أنشئ مستخدمًا بالبريد الإلكتروني وكلمة مرور. لا تحتاج إلى Phone Provider لتسجيل دخول الإدارة.
 بعد إنشاء المستخدم انسخ User UID ثم نفّذ:
 
 ```sql
 insert into public.admin_users(user_id) values ('USER-UUID-HERE');
 ```
 
-بعدها افتح `/admin` وسجّل الدخول برقم الجوال وكلمة المرور.
+بعدها افتح `/admin` وسجّل الدخول بالبريد الإلكتروني وكلمة المرور.
 
 ## 4) طريقة تأكيد الشراء
 لا يمكن لصفحة التقييم أن تعرف أن العميل اشترى من WhatsApp تلقائيًا من دون نظام طلبات/WhatsApp Business API. لذلك النسخة تستخدم طريقة مجانية وآمنة نسبيًا:

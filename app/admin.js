@@ -2,17 +2,9 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 
-function normalizeSaudiPhone(value) {
-  const v = value.replace(/\s|-/g, "");
-  if (v.startsWith("+966")) return v;
-  if (v.startsWith("966")) return `+${v}`;
-  if (v.startsWith("05")) return `+966${v.slice(1)}`;
-  return v;
-}
-
 export default function Admin() {
   const [session, setSession] = useState(null);
-  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loginMsg, setLoginMsg] = useState("");
   const [reviews, setReviews] = useState([]);
@@ -35,7 +27,7 @@ export default function Admin() {
   async function login(event) {
     event.preventDefault();
     setLoginMsg("جاري تسجيل الدخول...");
-    const { data, error } = await supabase.auth.signInWithPassword({ phone: normalizeSaudiPhone(phone), password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     if (error) setLoginMsg("بيانات الدخول غير صحيحة أو الحساب غير مفعّل.");
     else { setSession(data.session); setLoginMsg(""); setPassword(""); }
   }
@@ -86,7 +78,7 @@ export default function Admin() {
         <h1>دخول الإدارة</h1>
         <p>هذه الصفحة مخصصة لإدارة التقييمات ورموز تأكيد الشراء.</p>
         <form onSubmit={login}>
-          <label>رقم الجوال<input value={phone} onChange={(e) => setPhone(e.target.value)} required placeholder="05xxxxxxxx" inputMode="tel" /></label>
+          <label>البريد الإلكتروني<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="admin@example.com" autoComplete="username" /></label>
           <label>الرمز السري<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="••••••••" /></label>
           <button className="submit">دخول الإدارة</button>
           {loginMsg && <div className="msg">{loginMsg}</div>}
